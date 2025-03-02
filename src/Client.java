@@ -6,7 +6,7 @@ import java.util.Scanner;
 class ServerPing implements Runnable {
 
     private volatile boolean stopThread = false;
-    final PrintWriter out;
+    private final PrintWriter out;
 
     public ServerPing(PrintWriter out) {
         this.out = out;
@@ -15,12 +15,14 @@ class ServerPing implements Runnable {
     @Override
     public void run() {
         while (!stopThread) {
-            out.println("requestMemberList");
-            out.flush();
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
+            if (Client.isCoordinator) {
+                out.println("requestMemberList");
+                out.flush();
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
@@ -32,14 +34,38 @@ public class Client {
     private BufferedReader in;
     private PrintWriter out;
     private String[] memberList;
+    protected static boolean isCoordinator = false;
 
     private void handleServerRequest(String serverMessage) {
         String[] msgParts = serverMessage.split(" ", 2);
-        if (serverMessage.startsWith("text:")) {
-            System.out.println("\n" + msgParts[1]); // Print new message
-            System.out.print("> "); // Show prompt again
-        } else if (serverMessage.startsWith("memberList:")) {
-            memberList = parseStrToList(msgParts[1]);
+        switch (msgParts[0]) {
+            case ("text"):
+                System.out.println("\n" + msgParts[1]); // Print new message
+                System.out.print("> "); // Show prompt again
+                break;
+            case ("memberList"):
+                memberList = parseStrToList(msgParts[1]);
+                break;
+            case ("activateCoordinator"):
+                isCoordinator = true;
+                break;
+            case ("requestCoordinatorMemberList"):
+                if (isCoordinator) {
+                    // msgParts[1] = userID associated with the request
+                    out.println(
+                        "sendCoordinatorMemberList " +
+                        msgParts[1] +
+                        " " +
+                        Arrays.toString(memberList)
+                    );
+                    out.flush();
+                }
+                break;
+            case ("sendCoordinatorMemberList"):
+                System.out.println("*** Members List ***");
+                for (String line : msgParts[1].split(", ")) {
+                    System.out.println(line);
+                }
         }
     }
 
@@ -50,6 +76,10 @@ public class Client {
     }
 
     public Client(String serverAddress, int serverPort) {
+        System.out.print("Enter your ID: ");
+        Scanner scanner = new Scanner(System.in);
+        String userId = scanner.nextLine();
+
         try {
             socket = new Socket(serverAddress, serverPort);
             in = new BufferedReader(
@@ -58,15 +88,10 @@ public class Client {
             out = new PrintWriter(socket.getOutputStream(), true);
 
             System.out.println("Connected to server.");
-            System.out.print("Enter your ID: ");
-            Scanner scanner = new Scanner(System.in);
-            String userId = scanner.nextLine();
-            out.println(userId);
+            out.println("assignUserID " + userId);
+            out.flush();
 
-            ServerPing serverPing = new ServerPing(out);
-            new Thread(serverPing).start();
-
-            // Start a new thread to listen for messages from the server
+            // Start listening for server requests
             new Thread(() -> {
                 try {
                     String serverMessage;
@@ -78,6 +103,10 @@ public class Client {
                 }
             }).start();
 
+            ServerPing serverPing = new ServerPing(out);
+            new Thread(serverPing).start();
+
+            // Handles Client exit
             Runtime.getRuntime()
                 .addShutdownHook(
                     new Thread(() -> {
@@ -96,8 +125,14 @@ public class Client {
                 String message = scanner.nextLine();
                 out.println(message);
                 if (message.equalsIgnoreCase("list")) {
-                    for (String id : memberList) {
-                        System.out.println(id);
+                    if (isCoordinator) {
+                        System.out.println("*** Member List ***");
+                        for (String id : memberList) {
+                            System.out.println(id);
+                        }
+                    } else {
+                        out.println("requestCoordinatorMemberList " + userId);
+                        out.flush();
                     }
                 }
             }

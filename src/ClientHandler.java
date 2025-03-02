@@ -16,6 +16,7 @@ public class ClientHandler implements Runnable {
     public void setCoordinator(boolean status) {
         isCoordinator = status;
         sendMessage("text", "You are now the coordinator.");
+        sendMessage("activateCoordinator", "");
     }
 
     public String getClientId() {
@@ -29,12 +30,13 @@ public class ClientHandler implements Runnable {
     public void sendMessage(String type, String message) {
         if (out != null) {
             out.println(type + " " + message);
+            out.flush();
         }
     }
 
     private void handleClientRequest(String message) {
-        if (message.equalsIgnoreCase("requestMemberList")) {
-            sendMessage("memberList:", ChatServer.getClientList());
+        if (message.startsWith("requestMemberList")) {
+            sendMessage("memberList", ChatServer.getClientList());
         } else if (message.startsWith("@")) {
             String[] parts = message.split(" ", 2);
             if (parts.length > 1) {
@@ -46,6 +48,31 @@ public class ClientHandler implements Runnable {
             } else {
                 sendMessage("text", "Invalid format! Use @username message");
             }
+        } else if (message.startsWith("requestCoordinatorMemberList")) {
+            String[] parts = message.split(" ");
+            String instruction = parts[0];
+            String userID = parts[1];
+            ChatServer.coordinator.sendMessage(instruction, userID); // Send the same message to the coordinator
+        } else if (message.startsWith("sendCoordinatorMemberList")) {
+            String[] parts = message.split(" ", 3);
+            for (ClientHandler client : ChatServer.clients) {
+                if (client.clientId.equals(parts[1])) {
+                    client.sendMessage(
+                        "sendCoordinatorMemberList",
+                        parts[2].replaceAll("[\\[\\]]", "")
+                    );
+                }
+            }
+        } else if (message.startsWith("assignUserID")) {
+            String[] parts = message.split(" ");
+            clientId = parts[1];
+            // Ask for ID
+            sendMessage(
+                "text",
+                "Welcome " +
+                clientId +
+                "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
+            );
         } else {
             ChatServer.broadcastMessage(clientId + ": " + message, this);
         }
@@ -59,19 +86,13 @@ public class ClientHandler implements Runnable {
             );
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            // Ask for ID
-            out.println("text: Enter your ID:");
-            clientId = in.readLine();
-            if (clientId == null || clientId.trim().isEmpty()) {
-                throw new IOException("Client did not provide an ID");
+            // Assign coordinator if it's the first client
+            if (ChatServer.coordinator == null) {
+                ChatServer.coordinator = this;
+                this.setCoordinator(true);
             }
-            out.println(
-                "text: " +
-                "Welcome " +
-                clientId +
-                "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
-            );
 
+            // Start listening for client requests
             String message;
             while ((message = in.readLine()) != null) {
                 handleClientRequest(message);

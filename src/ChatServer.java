@@ -7,9 +7,9 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class ChatServer {
 
     private static final int PORT = 50000; // Port number
-    private static final Set<ClientHandler> clients =
+    protected static final Set<ClientHandler> clients =
         new CopyOnWriteArraySet<>();
-    private static ClientHandler coordinator = null;
+    protected static ClientHandler coordinator = null;
 
     public static void main(String[] args) {
         System.out.println("Server started on port " + PORT + "...");
@@ -23,13 +23,6 @@ public class ChatServer {
 
                 ClientHandler client = new ClientHandler(socket);
                 clients.add(client);
-
-                // Assign coordinator if it's the first client
-                if (coordinator == null) {
-                    coordinator = client;
-                    client.setCoordinator(true);
-                }
-
                 new Thread(client).start();
             }
         } catch (IOException e) {
