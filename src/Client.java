@@ -1,11 +1,11 @@
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
 class ServerPing implements Runnable {
 
-    private volatile boolean stopThread = false;
     private final PrintWriter out;
 
     public ServerPing(PrintWriter out) {
@@ -14,12 +14,12 @@ class ServerPing implements Runnable {
 
     @Override
     public void run() {
-        while (!stopThread) {
+        while (!Client.stopThreads) {
             if (Client.isCoordinator) {
                 out.println("requestMemberList");
                 out.flush();
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(500);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                 }
@@ -28,15 +28,17 @@ class ServerPing implements Runnable {
     }
 }
 
-public class Client {
 
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
-    private String[] memberList;
-    protected static boolean isCoordinator = false;
+class Listener implements Runnable {
+    private final BufferedReader in;
+    private final PrintWriter out;
 
-    private void handleServerRequest(String serverMessage) {
+    public Listener(BufferedReader in, PrintWriter out) {
+        this.in = in;
+        this.out = out;
+    }
+
+    private void handleServerRequest(String serverMessage) throws RuntimeException {
         String[] msgParts = serverMessage.split(" ", 2);
         switch (msgParts[0]) {
             case ("text"):
@@ -44,19 +46,17 @@ public class Client {
                 System.out.print("> "); // Show prompt again
                 break;
             case ("memberList"):
-                memberList = parseStrToList(msgParts[1]);
+                Client.memberList = msgParts[1].split("§");
                 break;
             case ("activateCoordinator"):
-                isCoordinator = true;
+                Client.isCoordinator = true;
                 break;
             case ("requestCoordinatorMemberList"):
-                if (isCoordinator) {
+                if (Client.isCoordinator) {
                     // msgParts[1] = userID associated with the request
                     out.println(
-                        "sendCoordinatorMemberList " +
-                        msgParts[1] +
-                        " " +
-                        Arrays.toString(memberList)
+                            "sendCoordinatorMemberList " + msgParts[1] +
+                            " " + Arrays.toString(Client.memberList)
                     );
                     out.flush();
                 }
@@ -66,14 +66,40 @@ public class Client {
                 for (String line : msgParts[1].split(", ")) {
                     System.out.println(line);
                 }
+                break;
+            case ("exit"):
+                System.out.println("HERE");
+                Client.stopThreads = true;
+                throw new RuntimeException(msgParts[1]);
         }
     }
 
-    private String[] parseStrToList(String serverMessage) {
-        String[] list = serverMessage.split("§");
-
-        return list;
+    public void run() {
+        try {
+            String serverMessage;
+            while (!Client.stopThreads && (serverMessage = in.readLine()) != null) {
+                try {
+                    handleServerRequest(serverMessage);
+                } catch (RuntimeException e) {
+                    System.err.println(e.getMessage() + ", Disconnecting...");
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Disconnected from server.");
+        }
     }
+}
+
+
+public class Client {
+
+    private Socket socket;
+    private BufferedReader in;
+    private PrintWriter out;
+    private ArrayList<Thread> threads = new ArrayList<>();
+    protected static String[] memberList;
+    protected static boolean isCoordinator = false;
+    protected static volatile boolean stopThreads = false;
 
     public Client(String serverAddress, int serverPort) {
         System.out.print("Enter your ID: ");
@@ -87,24 +113,19 @@ public class Client {
             );
             out = new PrintWriter(socket.getOutputStream(), true);
 
+            // Start threads
+            Thread listener = new Thread(new Listener(in, out));
+            listener.start();
+            threads.add(listener);
+
+            Thread serverPing = new Thread(new ServerPing(out));
+            serverPing.start();
+            threads.add(serverPing);
+
+
             System.out.println("Connected to server.");
             out.println("assignUserID " + userId);
             out.flush();
-
-            // Start listening for server requests
-            new Thread(() -> {
-                try {
-                    String serverMessage;
-                    while ((serverMessage = in.readLine()) != null) {
-                        handleServerRequest(serverMessage);
-                    }
-                } catch (IOException e) {
-                    System.out.println("Disconnected from server.");
-                }
-            }).start();
-
-            ServerPing serverPing = new ServerPing(out);
-            new Thread(serverPing).start();
 
             // Handles Client exit
             Runtime.getRuntime()
@@ -121,7 +142,7 @@ public class Client {
                 );
 
             // Main thread handles user input
-            while (true) {
+            while (!stopThreads) {
                 String message = scanner.nextLine();
                 out.println(message);
                 if (message.equalsIgnoreCase("list")) {
@@ -136,8 +157,14 @@ public class Client {
                     }
                 }
             }
+            for (Thread thread : threads) {
+                thread.join();
+            }
+
         } catch (IOException e) {
             System.out.println("Error connecting to server: " + e.getMessage());
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

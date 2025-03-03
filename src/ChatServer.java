@@ -1,4 +1,6 @@
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Set;
@@ -30,7 +32,8 @@ public class ChatServer {
         }
     }
 
-    static void broadcastMessage(String message, ClientHandler sender) {
+
+    protected static void broadcastMessage(String message, ClientHandler sender) {
         for (ClientHandler client : clients) {
             if (client != sender) {
                 client.sendMessage("text", message);
@@ -38,16 +41,12 @@ public class ChatServer {
         }
     }
 
-    static void sendPrivateMessage(
-        String recipientId,
-        String message,
-        ClientHandler sender
-    ) {
+    protected static void sendPrivateMessage(String recipientId, String message, ClientHandler sender) {
         for (ClientHandler client : clients) {
             if (client.getClientId().equalsIgnoreCase(recipientId)) {
                 client.sendMessage(
-                    "text",
-                    "[Private] " + sender.getClientId() + ": " + message
+                        "text",
+                        "[Private] " + sender.getClientId() + ": " + message
                 );
                 return;
             }
@@ -55,9 +54,14 @@ public class ChatServer {
         sender.sendMessage("text", "User '" + recipientId + "' not found!");
     }
 
-    static void removeClient(ClientHandler client) {
+    protected static void removeClient(ClientHandler client) {
         clients.remove(client);
+        reassignCoordinator(client);
 
+        broadcastMessage(client.getClientId() + " has left the chat.", null);
+    }
+
+    private static void reassignCoordinator(ClientHandler client) {
         // If coordinator leaves, assign a new one
         if (client == coordinator) {
             coordinator = clients.isEmpty() ? null : clients.iterator().next();
@@ -65,15 +69,14 @@ public class ChatServer {
                 coordinator.setCoordinator(true);
             }
         }
-
-        broadcastMessage(client.getClientId() + " has left the chat.", null);
     }
 
-    static String getClientList() {
+    protected static String getClientList() {
         StringBuilder list = new StringBuilder();
         for (ClientHandler client : clients) {
             list.append(client.getClientInfo()).append("§");
         }
         return list.toString();
+
     }
 }
