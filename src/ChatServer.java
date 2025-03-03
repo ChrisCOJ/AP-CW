@@ -5,9 +5,11 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 public class ChatServer {
+
     private static final int PORT = 50000; // Port number
-    private static final Set<ClientHandler> clients = new CopyOnWriteArraySet<>();
-    private static ClientHandler coordinator = null;
+    protected static final Set<ClientHandler> clients =
+        new CopyOnWriteArraySet<>();
+    protected static ClientHandler coordinator = null;
 
     public static void main(String[] args) {
         System.out.println("Server started on port " + PORT + "...");
@@ -21,13 +23,6 @@ public class ChatServer {
 
                 ClientHandler client = new ClientHandler(socket);
                 clients.add(client);
-
-                // Assign coordinator if it's the first client
-                if (coordinator == null) {
-                    coordinator = client;
-                    client.setCoordinator(true);
-                }
-
                 new Thread(client).start();
             }
         } catch (IOException e) {
@@ -38,19 +33,26 @@ public class ChatServer {
     static void broadcastMessage(String message, ClientHandler sender) {
         for (ClientHandler client : clients) {
             if (client != sender) {
-                client.sendMessage(message);
+                client.sendMessage("text", message);
             }
         }
     }
 
-    static void sendPrivateMessage(String recipientId, String message, ClientHandler sender) {
+    static void sendPrivateMessage(
+        String recipientId,
+        String message,
+        ClientHandler sender
+    ) {
         for (ClientHandler client : clients) {
             if (client.getClientId().equalsIgnoreCase(recipientId)) {
-                client.sendMessage("[Private] " + sender.getClientId() + ": " + message);
+                client.sendMessage(
+                    "text",
+                    "[Private] " + sender.getClientId() + ": " + message
+                );
                 return;
             }
         }
-        sender.sendMessage("User '" + recipientId + "' not found!");
+        sender.sendMessage("text", "User '" + recipientId + "' not found!");
     }
 
     static void removeClient(ClientHandler client) {
@@ -68,9 +70,9 @@ public class ChatServer {
     }
 
     static String getClientList() {
-        StringBuilder list = new StringBuilder("Connected clients:\n");
+        StringBuilder list = new StringBuilder();
         for (ClientHandler client : clients) {
-            list.append(client.getClientInfo()).append("\n");
+            list.append(client.getClientInfo()).append("§");
         }
         return list.toString();
     }

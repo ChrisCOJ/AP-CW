@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.Socket;
 
 public class ClientHandler implements Runnable {
+
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -14,7 +15,8 @@ public class ClientHandler implements Runnable {
 
     public void setCoordinator(boolean status) {
         isCoordinator = status;
-        sendMessage("You are now the coordinator.");
+        sendMessage("text", "You are now the coordinator.");
+        sendMessage("activateCoordinator", "");
     }
 
     public String getClientId() {
@@ -25,41 +27,75 @@ public class ClientHandler implements Runnable {
         return clientId + (isCoordinator ? " (Coordinator)" : "");
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(String type, String message) {
         if (out != null) {
-            out.println(message);
+            out.println(type + " " + message);
+            out.flush();
+        }
+    }
+
+    private void handleClientRequest(String message) {
+        if (message.startsWith("requestMemberList")) {
+            sendMessage("memberList", ChatServer.getClientList());
+        } else if (message.startsWith("@")) {
+            String[] parts = message.split(" ", 2);
+            if (parts.length > 1) {
+                ChatServer.sendPrivateMessage(
+                    parts[0].substring(1),
+                    parts[1],
+                    this
+                );
+            } else {
+                sendMessage("text", "Invalid format! Use @username message");
+            }
+        } else if (message.startsWith("requestCoordinatorMemberList")) {
+            String[] parts = message.split(" ");
+            String instruction = parts[0];
+            String userID = parts[1];
+            ChatServer.coordinator.sendMessage(instruction, userID); // Send the same message to the coordinator
+        } else if (message.startsWith("sendCoordinatorMemberList")) {
+            String[] parts = message.split(" ", 3);
+            for (ClientHandler client : ChatServer.clients) {
+                if (client.clientId.equals(parts[1])) {
+                    client.sendMessage(
+                        "sendCoordinatorMemberList",
+                        parts[2].replaceAll("[\\[\\]]", "")
+                    );
+                }
+            }
+        } else if (message.startsWith("assignUserID")) {
+            String[] parts = message.split(" ");
+            clientId = parts[1];
+            // Ask for ID
+            sendMessage(
+                "text",
+                "Welcome " +
+                clientId +
+                "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
+            );
+        } else {
+            ChatServer.broadcastMessage(clientId + ": " + message, this);
         }
     }
 
     @Override
     public void run() {
         try {
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            in = new BufferedReader(
+                new InputStreamReader(socket.getInputStream())
+            );
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            // Ask for ID
-            out.println("Enter your ID:");
-            clientId = in.readLine();
-            if (clientId == null || clientId.trim().isEmpty()) {
-                throw new IOException("Client did not provide an ID");
+            // Assign coordinator if it's the first client
+            if (ChatServer.coordinator == null) {
+                ChatServer.coordinator = this;
+                this.setCoordinator(true);
             }
-            out.println("Welcome " + clientId + "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave.");
 
+            // Start listening for client requests
             String message;
             while ((message = in.readLine()) != null) {
-                if (message.equalsIgnoreCase("exit")) break;
-                else if (message.equalsIgnoreCase("list")) {
-                    sendMessage(ChatServer.getClientList());
-                } else if (message.startsWith("@")) {
-                    String[] parts = message.split(" ", 2);
-                    if (parts.length > 1) {
-                        ChatServer.sendPrivateMessage(parts[0].substring(1), parts[1], this);
-                    } else {
-                        sendMessage("Invalid format! Use @username message");
-                    }
-                } else {
-                    ChatServer.broadcastMessage(clientId + ": " + message, this);
-                }
+                handleClientRequest(message);
             }
         } catch (IOException e) {
             System.out.println(clientId + " disconnected.");
@@ -71,4 +107,3 @@ public class ClientHandler implements Runnable {
         }
     }
 }
-
