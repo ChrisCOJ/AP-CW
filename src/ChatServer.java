@@ -24,7 +24,6 @@ public class ChatServer {
                 System.out.println("New client connected!");
 
                 ClientHandler client = new ClientHandler(socket);
-                clients.add(client);
                 new Thread(client).start();
             }
         } catch (IOException e) {
@@ -58,7 +57,9 @@ public class ChatServer {
         clients.remove(client);
         reassignCoordinator(client);
 
-        broadcastMessage(client.getClientId() + " has left the chat.", null);
+        if (client.getClientId() != null) {
+            broadcastMessage(client.getClientId() + " has left the chat.", null);
+        }
     }
 
     private static void reassignCoordinator(ClientHandler client) {

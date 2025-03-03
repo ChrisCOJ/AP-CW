@@ -68,7 +68,6 @@ class Listener implements Runnable {
                 }
                 break;
             case ("exit"):
-                System.out.println("HERE");
                 Client.stopThreads = true;
                 throw new RuntimeException(msgParts[1]);
         }

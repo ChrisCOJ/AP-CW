@@ -48,7 +48,10 @@ public class ClientHandler implements Runnable {
             handleSendingListToClient(message);
         }
         else if (message.startsWith("assignUserID")) {
-            handleAssigningUserID(message);
+            if (handleAssigningUserID(message)){
+                ChatServer.clients.add(this);
+            }
+
         }
         else {
             if (clientId != null) {
@@ -91,27 +94,24 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void handleAssigningUserID(String message) {
+    private boolean handleAssigningUserID(String message) {
         String[] parts = message.split(" ");
         String userID = parts[1];
-        boolean takenID = false;
         for (ClientHandler client : ChatServer.clients) {
             if (client.clientId != null && client.clientId.equals(userID)) {
                 sendMessage("exit", "The username is taken");
-                takenID = true;
-                break;
+                return false;
             }
         }
-        if (!takenID) {
-            clientId = parts[1];
-            // Ask for ID
-            sendMessage(
-                    "text",
-                    "Welcome " +
-                            clientId +
-                            "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
-            );
-        }
+        clientId = parts[1];
+        // Ask for ID
+        sendMessage(
+                "text",
+                "Welcome " +
+                        clientId +
+                        "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
+        );
+        return true;
     }
 
     @Override
