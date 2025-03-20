@@ -1,6 +1,6 @@
-import java.io.BufferedReader;
+package server;
+
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Set;
@@ -75,7 +75,7 @@ public class ChatServer {
     protected static String getClientList() {
         StringBuilder list = new StringBuilder();
         for (ClientHandler client : clients) {
-            list.append(client.getClientInfo()).append("§");
+            list.append(client.getClientInfo()).append(";;");
         }
         return list.toString();
 
