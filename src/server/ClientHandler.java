@@ -90,7 +90,7 @@ public class ClientHandler implements Runnable {
             if (client.clientId.equals(userID)) {
                 client.sendMessage(
                         "sendCoordinatorMemberList",
-                        strMemberList.replaceAll("[\\[\\]]", "")
+                        strMemberList.replaceAll("[\\[\\]]", "")  // Remove brackets [] from the string
                 );
             }
         }
@@ -111,7 +111,7 @@ public class ClientHandler implements Runnable {
                 "text",
                 "Welcome " +
                         clientId +
-                        "! Type 'list' to see users, '@user message' for private messages, or 'exit' to leave."
+                        "! Type '/list' to see a list of clients and '@username <message>' for private messages."
         );
         return true;
     }
