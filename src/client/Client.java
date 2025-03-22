@@ -15,20 +15,23 @@ public class Client {
     protected String[] memberList;
     protected boolean isCoordinator = false;
     protected volatile boolean stopThreads = false;
+    protected volatile boolean receivedList = false;
+    protected final String userID;
 
     public Client(String serverAddress, int serverPort) {
-        System.out.print("Enter your ID: ");
+        System.out.print("Enter your username: ");
         Scanner scanner = new Scanner(System.in);
-        String userId = scanner.nextLine();
+        userID = scanner.nextLine();
 
         try {
+            // Open channels of communication with the server
             socket = new Socket(serverAddress, serverPort);
             in = new BufferedReader(
                 new InputStreamReader(socket.getInputStream())
             );
             out = new PrintWriter(socket.getOutputStream(), true);
 
-            // Start threads
+            // ********* Start threads *********
             Thread listener = new Thread(new Listener(this, in, out));
             listener.start();
             threads.add(listener);
@@ -36,45 +39,47 @@ public class Client {
             Thread serverPing = new Thread(new ServerPing(this, out));
             serverPing.start();
             threads.add(serverPing);
-
+            // *********************************
 
             System.out.println("Connected to server.");
-            out.println("assignUserID " + userId);
+            out.println("assignUserID " + userID);
             out.flush();
 
-            // Handles client.Client exit
-            Runtime.getRuntime()
-                .addShutdownHook(
-                    new Thread(() -> {
-                        try {
-                            // Cleanup
-                            scanner.close();
-                            socket.close();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    })
-                );
 
             // Main thread handles user input
             while (!stopThreads) {
                 String message = scanner.nextLine();
-                out.println(message);
-                if (message.equalsIgnoreCase("list")) {
-                    if (isCoordinator) {
-                        System.out.println("*** Member List ***");
-                        for (String id : memberList) {
-                            System.out.println(id);
-                        }
-                    } else {
-                        out.println("requestCoordinatorMemberList " + userId);
-                        out.flush();
-                    }
+
+                if (!message.equalsIgnoreCase("/list")) {
+                    out.println(message);  // Broadcast message if it doesn't equal "list" command
                 }
+                // If coordinator types '/list', print the list stored locally
+                else if (isCoordinator) {
+                    System.out.println("\n*** Member List ***");
+                    for (String id : memberList) {
+                        System.out.println(id);
+                    }
+                    System.out.print("\n");
+                // If non-coordinator types '/list', request the list from the coordinator client
+                } else {
+                    out.println("requestCoordinatorMemberList " + userID);
+                    out.flush();
+                    while (!receivedList) {
+                        Thread.sleep(10);
+                    }
+                    receivedList = false;
+                }
+
+                System.out.print(userID + ": ");  // Display a message prompt
             }
+
+            // Cleanup
+            // Wait for threads to finish execution before exiting gracefully
             for (Thread thread : threads) {
                 thread.join();
             }
+            scanner.close();
+            socket.close();
 
         } catch (IOException e) {
             System.out.println("Error connecting to server: " + e.getMessage());

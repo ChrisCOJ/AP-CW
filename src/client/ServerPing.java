@@ -4,6 +4,8 @@ import java.io.PrintWriter;
 
 
 class ServerPing implements Runnable {
+    /* Thread that sends a message to the server requesting the most recent member list each X unit of time.
+    *  This request will only be sent by the coordinator client */
 
     private final PrintWriter out;
     private final Client client;
