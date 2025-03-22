@@ -19,14 +19,9 @@ public class Client {
     protected final String userID;
 
     public Client(String serverAddress, int serverPort) {
-        Scanner scanner = new Scanner(System.in);
         System.out.print("Enter your username: ");
-        String input = scanner.nextLine();
-        if (input.isEmpty()) {
-            System.out.println("Username cannot be empty. Disconnecting...");
-            System.exit(1);
-        }
-        userID = input;
+        Scanner scanner = new Scanner(System.in);
+        userID = scanner.nextLine();
 
         try {
             // Open channels of communication with the server
