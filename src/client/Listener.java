@@ -62,6 +62,7 @@ class Listener implements Runnable {
     public void run() {
         try {
             String serverMessage;  // This variable stores a message sent by the server
+
             while (!client.stopThreads && (serverMessage = in.readLine()) != null) {
                 try {
                     handleServerRequest(serverMessage);

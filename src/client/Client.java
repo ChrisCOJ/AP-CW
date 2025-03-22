@@ -31,6 +31,7 @@ public class Client {
             );
             out = new PrintWriter(socket.getOutputStream(), true);
 
+
             // ********* Start threads *********
             Thread listener = new Thread(new Listener(this, in, out));
             listener.start();
@@ -44,7 +45,6 @@ public class Client {
             System.out.println("Connected to server.");
             out.println("assignUserID " + userID);
             out.flush();
-
 
             // Main thread handles user input
             while (!stopThreads) {
