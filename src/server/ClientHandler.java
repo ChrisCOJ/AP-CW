@@ -8,7 +8,6 @@ public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private PrintWriter out;
-    private BufferedReader in;
     private String clientID;
     private boolean isCoordinator = false;
 
@@ -145,8 +144,8 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream())
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream())
             );
             out = new PrintWriter(socket.getOutputStream(), true);
 

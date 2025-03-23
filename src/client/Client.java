@@ -30,30 +30,27 @@ public class Client {
             );
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-
-            // Start threads
+            ////////////// Start threads /////////////////
             ArrayList<Thread> threads = new ArrayList<>();
-
+            ///
             Thread listener = new Thread(new Listener(this, in, out));
             listener.start();
             threads.add(listener);
-
+            ///
             Thread serverPing = new Thread(new ServerPing(this, out));
             serverPing.start();
             threads.add(serverPing);
-
+            //////////////////////////////////////////////
 
             // Inform the server of the client's username
             out.println("assignUserID " + username);
             out.flush();
 
-
-            //  Main thread handles user input //
+            //////  Main thread handles user input ///////
             while (!stopThreads) {
                 handleUserInput(out);
             }
-            // ******************************* //
-
+            //////////////////////////////////////////////
 
             // Cleanup
             // Wait for threads to finish execution before exiting gracefully
@@ -96,7 +93,7 @@ public class Client {
             }
             receivedList = false;
         }
-}
+    }
 
 
     public static void main(String[] args) {
@@ -112,4 +109,5 @@ public class Client {
         Client client = new Client(username, scanner);
         client.start("127.0.0.1", 50000);
     }
+
 }
