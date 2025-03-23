@@ -8,36 +8,32 @@ import java.util.Scanner;
 
 public class Client {
 
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
-    private ArrayList<Thread> threads = new ArrayList<>();
-    protected String[] memberList;
-    protected boolean isCoordinator = false;
+    protected String[] memberList;  // This list is empty for non-coordinator clients
+    protected volatile boolean isCoordinator = false;
     protected volatile boolean stopThreads = false;
     protected volatile boolean receivedList = false;
-    protected final String userID;
+    protected final String username;
+    private final Scanner scanner;
 
-    public Client(String serverAddress, int serverPort) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter your username: ");
-        String input = scanner.nextLine();
-        if (input.isEmpty()) {
-            System.out.println("Username cannot be empty. Disconnecting...");
-            System.exit(1);
-        }
-        userID = input;
+    public Client(String username, Scanner scanner) {
+        this.username = username;
+        this.scanner = scanner;
+    }
 
+
+    private void start(String serverAddress, int serverPort) {
         try {
             // Open channels of communication with the server
-            socket = new Socket(serverAddress, serverPort);
-            in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream())
+            Socket socket = new Socket(serverAddress, serverPort);
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream())
             );
-            out = new PrintWriter(socket.getOutputStream(), true);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
 
-            // ********* Start threads *********
+            // Start threads
+            ArrayList<Thread> threads = new ArrayList<>();
+
             Thread listener = new Thread(new Listener(this, in, out));
             listener.start();
             threads.add(listener);
@@ -45,37 +41,19 @@ public class Client {
             Thread serverPing = new Thread(new ServerPing(this, out));
             serverPing.start();
             threads.add(serverPing);
-            // *********************************
 
-            out.println("assignUserID " + userID);
+
+            // Inform the server of the client's username
+            out.println("assignUserID " + username);
             out.flush();
 
-            // Main thread handles user input
-            while (!stopThreads) {
-                String message = scanner.nextLine();
-                System.out.print("\033[A\033[2K");  // Move cursor up and clear the prompt line (i.e. 'Chris: ')
 
-                if (!message.equalsIgnoreCase("/list")) {
-                    out.println(message);  // Broadcast message if it doesn't equal "list" command
-                }
-                // If coordinator types '/list', print the list stored locally
-                else if (isCoordinator) {
-                    System.out.println("\n*** Member List ***");
-                    for (String id : memberList) {
-                        System.out.println(id);
-                    }
-                    System.out.print("\n");
-                    System.out.print(userID + ": ");  // Display a message prompt
-                // If non-coordinator types '/list', request the list from the coordinator client
-                } else {
-                    out.println("requestCoordinatorMemberList " + userID);
-                    out.flush();
-                    while (!receivedList) {
-                        Thread.sleep(100);
-                    }
-                    receivedList = false;
-                }
+            //  Main thread handles user input //
+            while (!stopThreads) {
+                handleUserInput(out);
             }
+            // ******************************* //
+
 
             // Cleanup
             // Wait for threads to finish execution before exiting gracefully
@@ -92,7 +70,46 @@ public class Client {
         }
     }
 
+
+    private void handleUserInput(PrintWriter out) throws InterruptedException {
+        String message = scanner.nextLine();
+        System.out.print("\033[A\033[2K");  // Move cursor up and clear the prompt line (i.e. 'Chris: ')
+
+        if (!message.equalsIgnoreCase("/list")) {
+            out.println(message);  // Send message to server if it doesn't equal "list" command
+        }
+        // If coordinator types '/list', print the list stored locally
+        else if (isCoordinator) {
+            System.out.println("\n*** Member List ***");
+            for (String id : memberList) {
+                System.out.println(id);
+            }
+            System.out.print("\n");
+            System.out.print(username + ": ");  // Display a message prompt
+            // If non-coordinator types '/list', request the list from the coordinator client
+        } else {
+            out.println("requestCoordinatorMemberList " + username);
+            out.flush();
+            // Wait to receive the member list from the server
+            while (!receivedList) {
+                Thread.sleep(100);
+            }
+            receivedList = false;
+        }
+}
+
+
     public static void main(String[] args) {
-        new Client("127.0.0.1", 50000); // Change IP and port if needed
+        // Let user choose their username
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter your username: ");
+        String username = scanner.nextLine();
+        if (username.isEmpty()) {
+            System.out.println("Username cannot be empty. Disconnecting...");
+            System.exit(1);
+        }
+
+        Client client = new Client(username, scanner);
+        client.start("127.0.0.1", 50000);
     }
 }

@@ -28,14 +28,17 @@ class Listener implements Runnable {
             case ("text"):  // Send normal text message
                 System.out.print("\033[2K\r");  // Clear user message prompt (i.e. 'Chris: ')
                 System.out.println(msgParts[1]);  // Print new message
-                System.out.print(client.userID + ": ");  // Display message prompt again
+                System.out.print(client.username + ": ");  // Display message prompt again
                 break;
+
             case ("memberList"):  // Member list sent to the coordinator client
                 client.memberList = msgParts[1].split(";;");
                 break;
+
             case ("activateCoordinator"):  // Set coordinator flag to true on the client-side
                 client.isCoordinator = true;
                 break;
+
             case ("requestCoordinatorMemberList"):  // Server requests the member list from the coordinator client
                 if (client.isCoordinator) {
                     // msgParts[1] = userID that requested the member list
@@ -43,6 +46,7 @@ class Listener implements Runnable {
                     out.flush();
                 }
                 break;
+
             case ("sendCoordinatorMemberList"):  // Server message containing the member list in string form
                 // Client processes the list in string form and prints it
                 System.out.println("\n*** Members List ***");
@@ -51,8 +55,9 @@ class Listener implements Runnable {
                 }
                 System.out.print("\n");
                 client.receivedList = true;
-                System.out.print(client.userID + ": ");  // Display a message prompt
+                System.out.print(client.username + ": ");  // Display a message prompt
                 break;
+
             case ("exit"):
                 client.stopThreads = true;
                 throw new RuntimeException(msgParts[1]);

@@ -2,20 +2,20 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
 
 public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private String clientId;
+    private String clientID;
     private boolean isCoordinator = false;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
     }
+
 
     public void setCoordinator(boolean status) {
         isCoordinator = status;
@@ -23,13 +23,16 @@ public class ClientHandler implements Runnable {
         sendMessage("activateCoordinator", "");
     }
 
-    public String getClientId() {
-        return clientId;
+
+    public String getClientID() {
+        return clientID;
     }
 
+
     public String getClientInfo() {
-        return clientId + (isCoordinator ? " (Coordinator)" : "");
+        return clientID + (isCoordinator ? " (Coordinator)" : "");
     }
+
 
     protected void sendMessage(String type, String message) {
         if (out != null) {
@@ -37,6 +40,7 @@ public class ClientHandler implements Runnable {
             out.flush();
         }
     }
+
     
     private void handleClientRequest(String message) {
         String timestamp = Utils.getCurrentTimestamp();  // Get the current timestamp
@@ -47,53 +51,66 @@ public class ClientHandler implements Runnable {
             handleSendingPrivateMessage(message);
         }
         else if (message.startsWith("requestCoordinatorMemberList")) {
-            handleRequestListFromCoordinator(message);
+            handleRequestingListFromCoordinator(message);
         }
         else if (message.startsWith("sendCoordinatorMemberList")) {
             handleSendingListToClient(message);
         }
         else if (message.startsWith("assignUserID")) {
-            if (handleAssigningUserID(message)){
+            if (handleAssigningUsername(message)){
                 ChatServer.clients.add(this);
             }
         }
         else {  // If message doesn't start with any reserved prefix
-            if (clientId != null) {
-                String formattedMessage = "[" + timestamp + "] " + clientId + ": " + message;
+            if (clientID != null) {
+                String formattedMessage = "[" + timestamp + "] " + clientID + ": " + message;
                 ChatServer.broadcastMessage(formattedMessage);
             }
         }
     }
+
     
     private void handleSendingPrivateMessage(String message) {
+        String timestamp = Utils.getCurrentTimestamp();
         // message = "@username <message>"
         String[] parts = message.split(" ", 2);
-        if (parts.length > 1) {
-            String username = parts[0];
-            String payload = parts[1];
-            ChatServer.sendPrivateMessage(
-                    username.substring(1),  // PM starts with "@", so ignore the first character
-                    payload,
-                    this
-            );
-        } else {
+        if (!(parts.length == 2)) {
             sendMessage("text", "Invalid format! Use @username message");
         }
+
+        // substring(1) ignores the first character because parts[0] starts with "@"
+        String recipient = parts[0].substring(1);  // recipient username
+        String payload = parts[1];  // The message to be sent
+
+        // Display the sender's message on their chat window for feedback purposes.
+        sendMessage("text", "[" + timestamp + "]" + " [PM to " + recipient + "]: " + payload);
+        // Display the sender's message on the recipient's chat window.
+        for (ClientHandler client : ChatServer.clients) {
+            if (client.clientID.equalsIgnoreCase(recipient)) {
+                client.sendMessage("text", "[" + timestamp + "]" + " [Private] "
+                                    + this.clientID + ": " + payload);
+                return;
+            }
+        }
+        // Exception Handling if username does not exist
+        sendMessage("text", "User '" + recipient + "' not found!");
     }
+
     
-    private void handleRequestListFromCoordinator(String message) {
+    private void handleRequestingListFromCoordinator(String message) {
         String[] parts = message.split(" ");
         String instruction = parts[0];
         String userID = parts[1];
         ChatServer.coordinator.sendMessage(instruction, userID); // Send the same message to the coordinator
     }
 
+
     private void handleSendingListToClient(String message) {
         String[] parts = message.split(" ", 3);
-        String userID = parts[1];
+        String recipient = parts[1];
         String strMemberList = parts[2];
         for (ClientHandler client : ChatServer.clients) {
-            if (client.clientId.equals(userID)) {
+            if (client.clientID.equalsIgnoreCase(recipient)) {
                 client.sendMessage(
                         "sendCoordinatorMemberList",
                         strMemberList.replaceAll("[\\[\\]]", "")  // Remove brackets [] from the string
@@ -102,25 +119,28 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private boolean handleAssigningUserID(String message) {
+
+    private boolean handleAssigningUsername(String message) {
         String[] parts = message.split(" ");
-        String userID = parts[1];
+        String username = parts[1];
         for (ClientHandler client : ChatServer.clients) {
-            if (client.clientId != null && client.clientId.equals(userID)) {
+            if (client.clientID != null && client.clientID.equalsIgnoreCase(username)) {
                 sendMessage("exit", "The username is taken");
                 return false;
             }
         }
-        clientId = parts[1];
-        // Ask for ID
+
+        // Assign username if not taken
+        this.clientID = username;
         sendMessage(
                 "text",
                 "Welcome " +
-                        clientId +
+                        this.clientID +
                         "! Type '/list' to see a list of clients and '@username <message>' for private messages."
         );
         return true;
     }
+
 
     @Override
     public void run() {
@@ -142,7 +162,7 @@ public class ClientHandler implements Runnable {
                 handleClientRequest(message);
             }
         } catch (IOException e) {
-            System.out.println(clientId + " disconnected.");
+            System.out.println(clientID + " disconnected.");
         } finally {
             try {
                 socket.close();
