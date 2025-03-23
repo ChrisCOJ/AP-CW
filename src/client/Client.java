@@ -21,7 +21,7 @@ public class Client {
     }
 
 
-    private void start(String serverAddress, int serverPort) {
+    public void start(String serverAddress, int serverPort) {
         try {
             // Open channels of communication with the server
             Socket socket = new Socket(serverAddress, serverPort);
