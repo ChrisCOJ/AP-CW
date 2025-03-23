@@ -19,9 +19,14 @@ public class Client {
     protected final String userID;
 
     public Client(String serverAddress, int serverPort) {
-        System.out.print("Enter your username: ");
         Scanner scanner = new Scanner(System.in);
-        userID = scanner.nextLine();
+        System.out.print("Enter your username: ");
+        String input = scanner.nextLine();
+        if (input.isEmpty()) {
+            System.out.println("Username cannot be empty. Disconnecting...");
+            System.exit(1);
+        }
+        userID = input;
 
         try {
             // Open channels of communication with the server
@@ -42,13 +47,13 @@ public class Client {
             threads.add(serverPing);
             // *********************************
 
-            System.out.println("Connected to server.");
             out.println("assignUserID " + userID);
             out.flush();
 
             // Main thread handles user input
             while (!stopThreads) {
                 String message = scanner.nextLine();
+                System.out.print("\033[A\033[2K");  // Move cursor up and clear the prompt line (i.e. 'Chris: ')
 
                 if (!message.equalsIgnoreCase("/list")) {
                     out.println(message);  // Broadcast message if it doesn't equal "list" command
@@ -60,17 +65,16 @@ public class Client {
                         System.out.println(id);
                     }
                     System.out.print("\n");
+                    System.out.print(userID + ": ");  // Display a message prompt
                 // If non-coordinator types '/list', request the list from the coordinator client
                 } else {
                     out.println("requestCoordinatorMemberList " + userID);
                     out.flush();
                     while (!receivedList) {
-                        Thread.sleep(10);
+                        Thread.sleep(100);
                     }
                     receivedList = false;
                 }
-
-                System.out.print(userID + ": ");  // Display a message prompt
             }
 
             // Cleanup

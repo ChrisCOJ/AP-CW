@@ -2,6 +2,8 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ClientHandler implements Runnable {
 
@@ -17,7 +19,7 @@ public class ClientHandler implements Runnable {
 
     public void setCoordinator(boolean status) {
         isCoordinator = status;
-        sendMessage("text", "You are now the coordinator.");
+        sendMessage("text", "*** You are now the coordinator ***");
         sendMessage("activateCoordinator", "");
     }
 
@@ -35,8 +37,9 @@ public class ClientHandler implements Runnable {
             out.flush();
         }
     }
-
+    
     private void handleClientRequest(String message) {
+        String timestamp = Utils.getCurrentTimestamp();  // Get the current timestamp
         if (message.startsWith("requestMemberList")) {
             sendMessage("memberList", ChatServer.getClientList());
         }
@@ -53,28 +56,31 @@ public class ClientHandler implements Runnable {
             if (handleAssigningUserID(message)){
                 ChatServer.clients.add(this);
             }
-
         }
-        else {
+        else {  // If message doesn't start with any reserved prefix
             if (clientId != null) {
-                ChatServer.broadcastMessage(clientId + ": " + message, this);
+                String formattedMessage = "[" + timestamp + "] " + clientId + ": " + message;
+                ChatServer.broadcastMessage(formattedMessage);
             }
         }
     }
-
+    
     private void handleSendingPrivateMessage(String message) {
+        // message = "@username <message>"
         String[] parts = message.split(" ", 2);
         if (parts.length > 1) {
+            String username = parts[0];
+            String payload = parts[1];
             ChatServer.sendPrivateMessage(
-                    parts[0].substring(1),
-                    parts[1],
+                    username.substring(1),  // PM starts with "@", so ignore the first character
+                    payload,
                     this
             );
         } else {
             sendMessage("text", "Invalid format! Use @username message");
         }
     }
-
+    
     private void handleRequestListFromCoordinator(String message) {
         String[] parts = message.split(" ");
         String instruction = parts[0];

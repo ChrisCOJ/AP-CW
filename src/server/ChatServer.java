@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+
 public class ChatServer {
 
     private static final int PORT = 50000; // Port number
@@ -32,24 +33,26 @@ public class ChatServer {
     }
 
 
-    protected static void broadcastMessage(String message, ClientHandler sender) {
+    protected static void broadcastMessage(String message) {
         for (ClientHandler client : clients) {
-            if (client != sender) {
-                client.sendMessage("text", message);
-            }
+            client.sendMessage("text", message);
         }
     }
 
     protected static void sendPrivateMessage(String recipientId, String message, ClientHandler sender) {
+        String timestamp = Utils.getCurrentTimestamp();
+        // Display the sender's message on their chat window for feedback purposes.
+        sender.sendMessage("text", "[" + timestamp + "]" + " [PM to " + recipientId + "]: " + message);
+
+        // Display the sender's message on the recipient's chat window.
         for (ClientHandler client : clients) {
             if (client.getClientId().equalsIgnoreCase(recipientId)) {
-                client.sendMessage(
-                        "text",
-                        "[Private] " + sender.getClientId() + ": " + message
-                );
+                client.sendMessage("text", "[" + timestamp + "]" + " [Private] "
+                                    + sender.getClientId() + ": " + message);
                 return;
             }
         }
+        // Exception Handling if username does not exist
         sender.sendMessage("text", "User '" + recipientId + "' not found!");
     }
 
@@ -58,7 +61,7 @@ public class ChatServer {
         reassignCoordinator(client);
 
         if (client.getClientId() != null) {
-            broadcastMessage(client.getClientId() + " has left the chat.", null);
+            broadcastMessage(client.getClientId() + " has left the chat.");
         }
     }
 

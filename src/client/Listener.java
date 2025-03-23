@@ -26,8 +26,7 @@ class Listener implements Runnable {
         String[] msgParts = serverMessage.split(" ", 2);
         switch (msgParts[0]) {
             case ("text"):  // Send normal text message
-                System.out.print("\033[2K");  // Clear user message prompt (i.e. 'Chris: ')
-                System.out.print("\r");  // Move cursor to the beginning of the line
+                System.out.print("\033[2K\r");  // Clear user message prompt (i.e. 'Chris: ')
                 System.out.println(msgParts[1]);  // Print new message
                 System.out.print(client.userID + ": ");  // Display message prompt again
                 break;
@@ -52,6 +51,7 @@ class Listener implements Runnable {
                 }
                 System.out.print("\n");
                 client.receivedList = true;
+                System.out.print(client.userID + ": ");  // Display a message prompt
                 break;
             case ("exit"):
                 client.stopThreads = true;
