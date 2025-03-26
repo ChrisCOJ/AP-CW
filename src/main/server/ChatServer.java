@@ -39,11 +39,6 @@ public class ChatServer {
 
 
     // Used for testing
-    public static ClientHandler getCoordinator() {
-        return  coordinator;
-    }
-
-    // Used for testing
     public static void setCoordinator(ClientHandler clientHandler) {
         coordinator = clientHandler;
     }

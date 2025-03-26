@@ -13,7 +13,6 @@ public class Client {
     protected volatile boolean isCoordinator = false;
     protected final String username;
     protected String[] memberList;  // This list is empty for non-coordinator clients
-    private Scanner scanner;
 
     public Client(String username) {
         this.username = username;
@@ -39,10 +38,6 @@ public class Client {
     public void setCoordinator(boolean status) {
         isCoordinator = status;
     }
-    ///
-    public void setScanner(Scanner scanner) {
-        this.scanner = scanner;
-    }
     /////////////////////////////////////////////////
 
 
@@ -54,7 +49,7 @@ public class Client {
                     new InputStreamReader(socket.getInputStream())
             );
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            scanner = new Scanner(System.in);
+            Scanner scanner = new Scanner(System.in);
 
             ////////////// Start threads /////////////////
             ArrayList<Thread> threads = new ArrayList<>();
