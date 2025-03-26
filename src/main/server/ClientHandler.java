@@ -1,4 +1,4 @@
-package server;
+package main.server;
 
 import java.io.*;
 import java.net.Socket;
@@ -8,13 +8,23 @@ public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private PrintWriter out;
-    private String clientID;
+    private String clientID = null;
     private boolean isCoordinator = false;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
     }
 
+
+    // Used for testing
+    public void setOutputStream(PrintWriter out) {
+        this.out = out;
+    }
+
+    // Used for testing
+    public void setClientID(String clientID) {
+        this.clientID = clientID;
+    }
 
     public void setCoordinator(boolean status) {
         isCoordinator = status;
@@ -41,7 +51,7 @@ public class ClientHandler implements Runnable {
     }
 
     
-    private void handleClientRequest(String message) {
+    public void handleClientRequest(String message) {
         String timestamp = Utils.getCurrentTimestamp();  // Get the current timestamp
         if (message.startsWith("requestMemberList")) {
             sendMessage("memberList", ChatServer.getClientList());
@@ -57,7 +67,7 @@ public class ClientHandler implements Runnable {
         }
         else if (message.startsWith("assignUserID")) {
             if (handleAssigningUsername(message)){
-                ChatServer.clients.add(this);
+                ChatServer.addClient(this);
             }
         }
         else {  // If message doesn't start with any reserved prefix
@@ -81,13 +91,13 @@ public class ClientHandler implements Runnable {
         String recipient = parts[0].substring(1);  // recipient username
         String payload = parts[1];  // The message to be sent
 
-        // Display the sender's message on their chat window for feedback purposes.
-        sendMessage("text", "[" + timestamp + "]" + " [PM to " + recipient + "]: " + payload);
-        // Display the sender's message on the recipient's chat window.
         for (ClientHandler client : ChatServer.clients) {
             if (client.clientID.equalsIgnoreCase(recipient)) {
+                // Display the sender's message on the recipient's chat window.
                 client.sendMessage("text", "[" + timestamp + "]" + " [Private] "
-                                    + this.clientID + ": " + payload);
+                        + this.clientID + ": " + payload);
+                // Display the sender's message on their chat window for feedback purposes.
+                this.sendMessage("text", "[" + timestamp + "]" + " [PM to " + recipient + "]: " + payload);
                 return;
             }
         }

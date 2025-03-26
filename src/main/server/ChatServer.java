@@ -1,4 +1,4 @@
-package server;
+package main.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -33,23 +33,41 @@ public class ChatServer {
     }
 
 
-    protected static void broadcastMessage(String message) {
+    public static void addClient(ClientHandler client) {
+        clients.add(client);
+    }
+
+
+    // Used for testing
+    public static ClientHandler getCoordinator() {
+        return  coordinator;
+    }
+
+    // Used for testing
+    public static void setCoordinator(ClientHandler clientHandler) {
+        coordinator = clientHandler;
+    }
+
+
+    public static void broadcastMessage(String message) {
         for (ClientHandler client : clients) {
             client.sendMessage("text", message);
         }
     }
 
 
-    protected static void removeClient(ClientHandler client) {
+    public static void removeClient(ClientHandler client) {
         clients.remove(client);
         reassignCoordinator(client);
 
+        // Inform all clients that this client has left the chat.
         if (client.getClientID() != null) {
             broadcastMessage(client.getClientID() + " has left the chat.");
         }
     }
 
-    private static void reassignCoordinator(ClientHandler client) {
+
+    public static void reassignCoordinator(ClientHandler client) {
         // If coordinator leaves, assign a new one
         if (client == coordinator) {
             coordinator = clients.isEmpty() ? null : clients.iterator().next();
@@ -59,7 +77,8 @@ public class ChatServer {
         }
     }
 
-    protected static String getClientList() {
+
+    public static String getClientList() {
         // Returns the list of clients as a string.
         // Each client entry is separated by a special separator symbol (";;")
         StringBuilder list = new StringBuilder();

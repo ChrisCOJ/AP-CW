@@ -1,4 +1,4 @@
-package client;
+package main.client;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -6,20 +6,20 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 
 
-class Listener implements Runnable {
+public class ServerMessageListener implements Runnable {
     /* This thread handles every server message sent to a client */
 
     private final BufferedReader in;
     private final PrintWriter out;
     private final Client client;
 
-    public Listener(Client client, BufferedReader in, PrintWriter out) {
+    public ServerMessageListener(Client client, BufferedReader in, PrintWriter out) {
         this.client = client;
         this.in = in;
         this.out = out;
     }
 
-    private void handleServerRequest(String serverMessage) throws RuntimeException {
+    public void handleServerRequest(String serverMessage) throws RuntimeException {
         // Split the message into 2 parts (separator = space)
         // The first 'word' of the message always represents the type of instruction to be preformed
         // The second 'word' represents the payload / message
@@ -41,9 +41,8 @@ class Listener implements Runnable {
 
             case ("requestCoordinatorMemberList"):  // Server requests the member list from the coordinator client
                 if (client.isCoordinator) {
-                    // msgParts[1] = userID that requested the member list
+                    // msgParts[1] = username of the client that requested the member list
                     out.println("sendCoordinatorMemberList " + msgParts[1] + " " + Arrays.toString(client.memberList));
-                    out.flush();
                 }
                 break;
 

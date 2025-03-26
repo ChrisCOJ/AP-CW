@@ -1,4 +1,4 @@
-package client;
+package main.client;
 
 import java.io.PrintWriter;
 
@@ -20,7 +20,6 @@ class ServerPing implements Runnable {
         while (!client.stopThreads) {
             if (client.isCoordinator) {
                 out.println("requestMemberList");
-                out.flush();
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException ie) {
