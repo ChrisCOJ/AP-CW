@@ -1,4 +1,4 @@
-package client;
+package main.client;
 
 import java.io.*;
 import java.net.*;
@@ -8,17 +8,37 @@ import java.util.Scanner;
 
 public class Client {
 
-    protected String[] memberList;  // This list is empty for non-coordinator clients
-    protected volatile boolean isCoordinator = false;
     protected volatile boolean stopThreads = false;
-    protected volatile boolean receivedList = false;
+    public volatile boolean receivedList = false;
+    protected volatile boolean isCoordinator = false;
     protected final String username;
-    private final Scanner scanner;
+    protected String[] memberList;  // This list is empty for non-coordinator clients
 
-    public Client(String username, Scanner scanner) {
+    public Client(String username) {
         this.username = username;
-        this.scanner = scanner;
     }
+
+    /////////////// Getters / Setters ///////////////
+    public String getUsername() {
+        return username;
+    }
+    ///
+    public String[] getMemberList() {
+        return memberList;
+    }
+    ///
+    public void setMemberList(String[] list) {
+        memberList = list;
+    }
+    ///
+    public boolean isCoordinator() {
+        return isCoordinator;
+    }
+    ///
+    public void setCoordinator(boolean status) {
+        isCoordinator = status;
+    }
+    /////////////////////////////////////////////////
 
 
     public void start(String serverAddress, int serverPort) {
@@ -29,11 +49,12 @@ public class Client {
                     new InputStreamReader(socket.getInputStream())
             );
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            Scanner scanner = new Scanner(System.in);
 
             ////////////// Start threads /////////////////
             ArrayList<Thread> threads = new ArrayList<>();
             ///
-            Thread listener = new Thread(new Listener(this, in, out));
+            Thread listener = new Thread(new ServerMessageListener(this, in, out));
             listener.start();
             threads.add(listener);
             ///
@@ -44,11 +65,11 @@ public class Client {
 
             // Inform the server of the client's username
             out.println("assignUserID " + username);
-            out.flush();
 
             //////  Main thread handles user input ///////
             while (!stopThreads) {
-                handleUserInput(out);
+                String message = scanner.nextLine();
+                handleUserInput(out, message);
             }
             //////////////////////////////////////////////
 
@@ -68,8 +89,7 @@ public class Client {
     }
 
 
-    private void handleUserInput(PrintWriter out) throws InterruptedException {
-        String message = scanner.nextLine();
+    public void handleUserInput(PrintWriter out, String message) throws InterruptedException {
         System.out.print("\033[A\033[2K");  // Move cursor up and clear the prompt line (i.e. 'Chris: ')
 
         if (!message.equalsIgnoreCase("/list")) {
@@ -86,7 +106,6 @@ public class Client {
             // If non-coordinator types '/list', request the list from the coordinator client
         } else {
             out.println("requestCoordinatorMemberList " + username);
-            out.flush();
             // Wait to receive the member list from the server
             while (!receivedList) {
                 Thread.sleep(100);
@@ -106,7 +125,7 @@ public class Client {
             System.exit(1);
         }
 
-        Client client = new Client(username, scanner);
+        Client client = new Client(username);
         client.start("127.0.0.1", 50000);
     }
 
